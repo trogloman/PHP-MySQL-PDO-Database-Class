@@ -5,7 +5,7 @@
 * @author		Author: Vivek Wicky Aswal. (https://twitter.com/#!/VivekWickyAswal)
 * @version      0.1a
 */
-require_once(__DIR__ . '/../Db.class.php');
+require_once(__DIR__ . '/../DB.class.php');
 class Crud {
 
 	private $db;
@@ -43,6 +43,10 @@ class Crud {
 		return null;
 	}
 
+	public function varDump(){
+		return	$this->variables;
+	}
+
 	public function save($id = "0") {
 		$this->variables[$this->pk] = (empty($this->variables[$this->pk])) ? $id : $this->variables[$this->pk];
 
@@ -59,6 +63,7 @@ class Crud {
 
 		if(count($columns) > 1 ) {
 			$sql = "UPDATE " . $this->table .  " SET " . $fieldsvals . " WHERE " . $this->pk . "= :" . $this->pk;
+//echo $sql."\n";
 			return $this->db->query($sql,$this->variables);
 		}
 	}
@@ -78,6 +83,14 @@ class Crud {
 		return $this->db->query($sql,$bindings);
 	}
 
+     /**
+       *  Returns the last inserted id.
+       *  @return string
+       */	
+		public function lastInsertId() {
+			return $this->db->lastInsertId();
+		}	
+
 	public function delete($id = "") {
 		$id = (empty($this->variables[$this->pk])) ? $id : $this->variables[$this->pk];
 
@@ -92,7 +105,54 @@ class Crud {
 
 		if(!empty($id)) {
 			$sql = "SELECT * FROM " . $this->table ." WHERE " . $this->pk . "= :" . $this->pk . " LIMIT 1";	
-			$this->variables = $this->db->row($sql,array($this->pk=>$id));
+			$r=$this->db->row($sql,array($this->pk=>$id));
+			$this->variables = $r;
+		}
+		if(is_array($r)){
+			return true;
+		}else{
+			return false;
+		}
+
+	}
+	//public function search($param=false,$limitParam=false,$order=false) {
+	public function search($param=false,$limitParam=false) {
+		// check param and construct where close
+		if($param==false){
+			return $this->all();
+		}elseif(is_array($param)){
+			$where='';
+			foreach($param as $k=>$v){
+				$where.=(empty($where)?'':' AND ');
+				$this->db->bind($k,$v);
+				if(is_numeric($v)){
+				  $where.=$k."= :".$k."";
+				}elseif(is_string($v)){
+				  $where.=$k." LIKE :".$k;
+//				  $where.=$k." LIKE ':".$k."'";
+				}
+			}
+		}elseif(is_string($param)){
+			$where=$param;
+		}
+		if(!empty($where)) {
+			$sql = "SELECT * FROM " . $this->table ." WHERE " .$where;	
+		}
+		if(!empty($sql)){
+			// construct limit
+			if($limitParam==false){
+				$limit='';
+			    return $this->db->query($sql);
+			} elseif($limitParam!='1'){
+				$sql .= ' LIMIT '.$limitParam;	
+			    return $this->db->query($sql);
+			}else{
+				$sql .= ' LIMIT 1';	
+				//echo $sql;
+				//$this->variables = $this->db->row($sql,array($this->pk=>$id));
+				$r= $this->db->row($sql);
+				return $r;
+			}
 		}
 	}
 
